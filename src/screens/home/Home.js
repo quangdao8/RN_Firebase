@@ -8,12 +8,18 @@ import {
   TouchableOpacity,
   StatusBar,
   FlatList,
+  Alert,
 } from 'react-native';
 import database, {firebase} from '@react-native-firebase/database';
+import Auth from '@react-native-firebase/auth';
+import {StackActions, useNavigation} from '@react-navigation/native';
 
 export default function Home() {
+  const navigation = useNavigation();
   const [inputTextValue, setInputTextValue] = useState(null);
   const [list, setList] = useState(null);
+  const [isUpdateData, setIsUpdateData] = useState(false);
+  const [selectedCardIndex, setSelectedCardIndex] = useState(null);
 
   useEffect(() => {
     getDatabase();
@@ -57,6 +63,78 @@ export default function Home() {
       console.log(err);
     }
   };
+  const handleUpdateData = async () => {
+    try {
+      if (inputTextValue.length > 0) {
+        const response = await firebase
+          .app()
+          .database(
+            'https://rn-auth-7c5ee-default-rtdb.asia-southeast1.firebasedatabase.app/',
+          )
+          .ref(`todo/${selectedCardIndex}`)
+          .update({
+            value: inputTextValue,
+          });
+
+        console.log(response);
+        setInputTextValue('');
+        setIsUpdateData(false);
+      } else {
+        alert('Please Enter Value & Then Try Again');
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const handleCardPress = (cardIndex, cardValue) => {
+    try {
+      setIsUpdateData(true);
+      setSelectedCardIndex(cardIndex);
+      setInputTextValue(cardValue);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  const handleCardLongPress = (cardIndex, cardValue) => {
+    try {
+      Alert.alert('Alert', `Are You Sure To Delete ${cardValue} ?`, [
+        {
+          text: 'Cancel',
+          onPress: () => {
+            console.log('Cancel Is Press');
+          },
+        },
+        {
+          text: 'Ok',
+          onPress: async () => {
+            try {
+              const response = await firebase
+                .app()
+                .database(
+                  'https://rn-auth-7c5ee-default-rtdb.asia-southeast1.firebasedatabase.app/',
+                )
+                .ref(`todo/${cardIndex}`)
+                .remove();
+
+              setInputTextValue('');
+              setIsUpdateData(false);
+              console.log(response);
+            } catch (err) {
+              console.log(err);
+            }
+          },
+        },
+      ]);
+
+      // setIsUpdateData(true);
+      // setSelectedCardIndex(cardIndex);
+      // setInputTextValue(cardValue);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -71,26 +149,55 @@ export default function Home() {
           value={inputTextValue}
           onChangeText={value => setInputTextValue(value)}
         />
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => handleAddData()}>
-          <Text style={{color: '#fff'}}>Add</Text>
-        </TouchableOpacity>
+        {!isUpdateData ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => handleAddData()}>
+            <Text style={{color: '#fff'}}>Add</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => handleUpdateData()}>
+            <Text style={{color: '#fff'}}>Update</Text>
+          </TouchableOpacity>
+        )}
       </View>
+      <TouchableOpacity
+        style={{
+          marginVertical: 20,
+          width: '80%',
+          backgroundColor: 'red',
+          alignItems: 'center',
+          padding: 10,
+          borderRadius: 20,
+        }}
+        onPress={async () => {
+          await Auth().signOut();
+          navigation.dispatch(StackActions.popToTop());
+          // navigation.navigate('Login');
+        }}>
+        <Text style={{color: '#fff'}}>Logout</Text>
+      </TouchableOpacity>
 
       <View style={styles.cardContainer}>
         <Text style={{marginVertical: 20, fontSize: 20, fontWeight: 'bold'}}>
           Todo List
         </Text>
-
         <FlatList
           data={list}
           renderItem={item => {
+            const cardIndex = item.index;
             if (item.item !== null) {
               return (
-                <View style={styles.card}>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => handleCardPress(cardIndex, item.item.value)}
+                  onLongPress={() =>
+                    handleCardLongPress(cardIndex, item.item.value)
+                  }>
                   <Text>{item.item.value}</Text>
-                </View>
+                </TouchableOpacity>
               );
             }
           }}

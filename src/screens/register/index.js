@@ -1,31 +1,42 @@
 import React, {useState} from 'react';
-import {Text, View, TextInput, Button} from 'react-native';
+import {Text, View, TextInput, Button, Alert} from 'react-native';
 import styles from './style';
 import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 
 const Register = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
 
-  const handleSignUp = () => {
-    auth()
-      .createUserWithEmailAndPassword(email, password)
-      .then(() => {
-        console.log('User created');
-      })
-      .catch(error => {
-        if (error.code === 'auth/email-already-in-use') {
-          console.log('That email address is already in use!');
-        }
+  const handleSignUp = async () => {
+    try {
+      if (email?.length > 0 && password?.length > 0) {
+        const response = await auth().createUserWithEmailAndPassword(
+          email,
+          password,
+        );
+        const userData = {
+          id: response.user.uid,
+          email: email,
+        };
+        await firestore()
+          .collection('users')
+          .doc(response.user.uid)
+          .set(userData);
+        await auth().currentUser.sendEmailVerification();
 
-        if (error.code === 'auth/invalid-email') {
-          console.log('That email address is invalid!');
-        }
+        await auth().signOut();
 
-        console.error(error);
-        setErrorMessage('err', errorMessage.message);
-      });
+        Alert.alert('Please Verify YOur Email Check Out Link In Your Inbox');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Please enter all data');
+      }
+    } catch (error) {
+      console.log(error);
+      setErrorMessage(error.message);
+    }
   };
 
   return (

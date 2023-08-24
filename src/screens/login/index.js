@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {StyleSheet, Text, TextInput, View, Button} from 'react-native';
+import {StyleSheet, Text, TextInput, View, Button, Alert} from 'react-native';
 import styles from './style';
 import auth from '@react-native-firebase/auth';
 import {LoginManager, AccessToken} from 'react-native-fbsdk-next';
@@ -9,15 +9,26 @@ const Login = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState(null);
 
-  const handleLogin = () => {
-    // navigation.navigate('Home');
-    auth()
-      .signInWithEmailAndPassword(email, password)
-      .then(() => navigation.navigate('Home'))
-      .catch(error => {
-        console.log('err', error.message);
-        setErrorMessage(error.message);
-      });
+  const handleLogin = async () => {
+    try {
+      if (email?.length > 0 && password.length > 0) {
+        const user = await auth().signInWithEmailAndPassword(email, password);
+        console.log(user);
+        if (user.user.emailVerified) {
+          Alert.alert('You are Verified');
+          navigation.navigate('Home');
+        } else {
+          Alert.alert('Please Verify your email checkout inbox');
+          await auth().currentUser.sendEmailVerification();
+          await auth().signOut();
+        }
+      } else {
+        Alert.alert('Please enter your email and password');
+      }
+    } catch (error) {
+      console.log(error);
+      setErrorMessage(error.message);
+    }
   };
 
   async function onFacebookButtonPress() {
@@ -65,7 +76,7 @@ const Login = ({navigation}) => {
         onChangeText={password => setPassword(password)}
         value={password}
       />
-      <Button
+      {/* <Button
         title="Facebook"
         color={'blue'}
         onPress={() =>
@@ -73,7 +84,7 @@ const Login = ({navigation}) => {
             console.log('Signed in with Facebook!'),
           )
         }
-      />
+      /> */}
       <Button title="Login" color="#e93766" onPress={handleLogin} />
       <View>
         <Text>
